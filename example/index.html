@@ -1,0 +1,110 @@
+<html>
+  <head>
+    <meta
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+      name="viewport"
+    />
+    <script src="../lib/gl-plotter.js"></script>
+    <script src="./input.js"></script>
+  </head>
+  <body>
+    <div
+      id="gl-container"
+      style="
+        background-color: black;
+        width: 1295px;
+        height: 577px;
+        position: relative;
+      "
+    >
+      <div
+        style="
+          width: 100%;
+          height: 70px;
+          background-color: red;
+          opacity: 0.3;
+          position: absolute;
+          top: 95px;
+          left: 0;
+        "
+      ></div>
+    </div>
+
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        var plotter = glplotter({
+          referenceContainer: document.getElementById('gl-container'),
+          displayRate: 50,
+        });
+
+        plotter.addSignal({
+          id: 'sig1',
+          containerId: 'c1',
+          channelId: 'ch1',
+          color: [255, 255, 255, 1],
+          visible: true,
+          amplitude: 8,
+          pitch: 1,
+          chartHeight: 70,
+          yPosition: 95,
+        });
+
+        var lastX = 0;
+        var count = 0;
+        setInterval(() => {
+          if (count == 50) {
+            plotter.zoom(['sig1'], 2);
+            plotter.positionSignal('sig1', 250);
+          }
+          var dataFrame = [];
+          for (let i = 0; i < 50; i++) {
+            dataFrame.push({x: lastX, y: data[lastX % data.length]});
+            lastX++;
+          }
+
+          plotter.bufferData({
+            channelId: 'ch1',
+            points: dataFrame,
+          });
+          count++;
+        }, 50);
+
+        setTimeout(() => {
+          plotter.addSignal({
+            id: 'sig2',
+            containerId: 'c1',
+            channelId: 'ch1',
+            color: [0, 255, 255, 1],
+            visible: true,
+            amplitude: 8,
+            pitch: 1,
+            chartHeight: 70,
+            yPosition: 170,
+          });
+        }, 4000);
+
+        setTimeout(() => {
+          plotter.switchMode('MANUAL');
+        }, 8000);
+
+        let moving = false;
+        document
+          .getElementById('gl-container')
+          .addEventListener('mousedown', () => (moving = true));
+
+        document
+          .getElementById('gl-container')
+          .addEventListener('mouseup', () => (moving = false));
+
+        document
+          .getElementById('gl-container')
+          .addEventListener('mousemove', (event) => {
+            if (!moving) {
+              return;
+            }
+            plotter.move(-event.movementX);
+          });
+      });
+    </script>
+  </body>
+</html>

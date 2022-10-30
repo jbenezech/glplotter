@@ -1,0 +1,15 @@
+tsconfig.json
+tsconfig.paths.json
+package-lock.json
+node_modules/
+build/
+.idea/
+TEST*.xml
+.DS_Store
+Thumbs.db
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv

@@ -1,0 +1,71 @@
+module.exports = {
+  root: true,
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    project: ['./tsconfig.json'],
+    ecmaVersion: 2018,
+    ecmaFeatures: {
+      jsx: true,
+    },
+  },
+  env: {
+    browser: true,
+  },
+  plugins: ['@typescript-eslint', 'prettier'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended-requiring-type-checking',
+    'prettier',
+  ],
+  rules: {
+    'no-unsafe-optional-chaining': ['error'],
+    'no-await-in-loop': ['error'],
+    'no-template-curly-in-string': ['error'],
+    'no-unreachable-loop': ['error'],
+    'block-scoped-var': ['error'],
+    'default-case': ['error'],
+    'default-case-last': ['error'],
+    camelcase: ['error'],
+    'comma-style': ['error'],
+    'id-length': [
+      'error',
+      {
+        min: 3,
+        exceptions: ['id', 'gl', 'x', 'y'],
+      },
+    ],
+    'no-unneeded-ternary': [1],
+    'semi-style': [1, 'last'],
+    'space-in-parens': [1, 'never'],
+    'switch-colon-spacing': [1, {after: true, before: false}],
+    '@typescript-eslint/array-type': [2],
+    '@typescript-eslint/consistent-type-definitions': [2, 'interface'],
+    '@typescript-eslint/explicit-function-return-type': [2],
+    '@typescript-eslint/no-require-imports': [2],
+    '@typescript-eslint/no-unnecessary-boolean-literal-compare': [2],
+    '@typescript-eslint/no-unnecessary-condition': [2],
+    '@typescript-eslint/promise-function-async': [2],
+    '@typescript-eslint/no-empty-function': [1],
+    // semicolons
+    semi: 'off',
+    '@typescript-eslint/semi': [2, 'always', {omitLastInOneLineBlock: true}],
+    '@typescript-eslint/member-delimiter-style': [2],
+    // quotes
+    quotes: 'off',
+    '@typescript-eslint/quotes': [2, 'single'],
+    'space-before-function-paren': 'off',
+    '@typescript-eslint/space-before-function-paren': [
+      1,
+      {
+        anonymous: 'always',
+        named: 'never',
+        asyncArrow: 'always',
+      },
+    ],
+    'space-infix-ops': 'off',
+    '@typescript-eslint/space-infix-ops': [1],
+    'require-await': 'off',
+    '@typescript-eslint/require-await': [2],
+  },
+};

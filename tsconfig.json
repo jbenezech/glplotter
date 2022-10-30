@@ -1,0 +1,45 @@
+{
+  "extends": "./tsconfig.paths.json",
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitReturns": true,
+    "noImplicitAny": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": false,
+    "experimentalDecorators": true,
+  },
+  "include": [
+    "src",
+    "src/**/*",
+    ".env",
+    ".eslintignore",
+    ".eslintrc.js",
+    ".prettierignore",
+    ".prettierrc.json",
+    ".stylelintrc.json",
+    "craco.config.js",
+    "tsconfig.json",
+    "tsconfig.paths.json"
+  ],
+  "exclude": [
+    ".husky",
+    ".idea",
+    "public",
+    "build",
+    "node_modules",
+    "public",
+    "test",
+    ".eslintcache"
+  ]
+}

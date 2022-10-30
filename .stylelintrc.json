@@ -1,0 +1,15 @@
+{
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-sass-guidelines",
+    "stylelint-config-prettier"
+  ],
+  "rules": {
+    "order/properties-alphabetical-order": null,
+    "color-hex-length": "long",
+    "declaration-colon-newline-after": null,
+    "value-list-comma-newline-after": null,
+    "string-quotes": "single",
+    "declaration-empty-line-before": "never"
+  }
+}
