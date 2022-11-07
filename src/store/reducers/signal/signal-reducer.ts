@@ -1,6 +1,9 @@
+import {resetGpuBuffers} from '@src/signal/gpu-buffers';
 import {
   AddSignalPayload,
   PositionSignalPayload,
+  RemoveSignalPayload,
+  ReplaceSignalsPayload,
   ZoomSignalsPayload,
 } from '@src/store/actions/signal-actions';
 import {initialSignalState} from '@src/store/values';
@@ -11,7 +14,6 @@ export const addSignal = (
   state: State,
   {
     id,
-    containerId,
     channelId,
     color,
     visible,
@@ -21,10 +23,14 @@ export const addSignal = (
     yPosition,
   }: AddSignalPayload
 ): State => {
+  //if we already have the same id, do not add it again
+  if (state.signals.find((signal) => signal.id === id) !== undefined) {
+    return state;
+  }
+
   const initialState = {
     ...initialSignalState,
     id,
-    containerId,
     channelId,
     visible,
     amplitude,
@@ -37,6 +43,35 @@ export const addSignal = (
   return {
     ...state,
     signals: [...state.signals, initialState],
+  };
+};
+
+export const removeSignal = (
+  state: State,
+  {id}: RemoveSignalPayload
+): State => {
+  return {
+    ...state,
+    signals: state.signals.filter((signal) => signal.id !== id),
+  };
+};
+
+export const replaceSignals = (
+  state: State,
+  {signals}: ReplaceSignalsPayload
+): State => {
+  return {
+    ...state,
+    signals: signals.map((signal) => {
+      const existingSignal =
+        state.signals.find((sig) => sig.id === signal.id) || {};
+      return {
+        ...initialSignalState,
+        ...existingSignal,
+        ...signal,
+        color: colorToGlColor(signal.color),
+      };
+    }),
   };
 };
 
@@ -77,5 +112,17 @@ export const positionSignal = (
   return {
     ...state,
     signals,
+  };
+};
+
+export const destroySignalBuffers = (state: State): State => {
+  resetGpuBuffers();
+  return {
+    ...state,
+    signals: [],
+    gpuBuffers: state.gpuBuffers.map((buffer) => ({
+      ...buffer,
+      scheduledForDeletion: true,
+    })),
   };
 };

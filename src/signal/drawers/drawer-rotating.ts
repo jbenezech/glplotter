@@ -2,124 +2,178 @@ import {mat4} from 'gl-matrix';
 import {ScreenState, Signal, State} from '@src/store/state';
 import {
   screenSizeToPointSize,
-  getNbrCoordonatesAfterRotations,
+  coordonateSizeToVerticeSize,
+  pointSizeToCoordonateSize,
 } from '@src/utils/conversions';
 import {calculateMatrixes, setVertexAttributes} from './drawer';
+import {
+  getNbrCoordonatesAfterRotations,
+  getTotalRotations,
+} from '@src/screen/screen-utils';
 
-export const SignalDrawerRotating = {
-  draw(state: State, signal: Signal, gl: WebGL2RenderingContext): void {
-    this.drawLeft(state, signal, gl);
+const calculateCoordonatesOnLeft = (
+  state: ScreenState,
+  totalCoordonatesAvailable: number
+): {
+  coordonateStartIndex: number;
+  nbrCoordonates: number;
+} => {
+  const totalRotations = getTotalRotations(state);
 
-    this.drawRight(state, signal, gl);
-  },
+  //Get the number of coordonates that have been added
+  //until the start of the screen
+  //ie:
+  //First rotation => 0
+  //Second rotation => nbr of coordonates in 1 screen
+  //...
+  const nbrCoordonatesToStartOfScreen = getNbrCoordonatesAfterRotations(
+    state,
+    totalRotations
+  );
 
-  drawLeft(state: State, signal: Signal, gl: WebGL2RenderingContext): void {
-    //draw the points on the left side with total rotations
-    const elementIndex =
-      getNbrCoordonatesAfterRotations(
-        state.screenState,
-        state.screenState.totalRotations
-      ) / 3;
+  //Make sure we don't take more than there has been added
+  const nbrCoordonatesToDraw =
+    totalCoordonatesAvailable - nbrCoordonatesToStartOfScreen;
 
-    const maxAvailable = state.screenState.totalCoordonatesAdded / 3;
+  //We'll draw from the first on the left of the screen
+  //To the last we have
+  return {
+    coordonateStartIndex: nbrCoordonatesToStartOfScreen,
+    nbrCoordonates: nbrCoordonatesToDraw,
+  };
+};
 
-    const nbrElements = maxAvailable - elementIndex - 3; //-3 to account for rotation fudge
+const calculateCoordonatesOnRight = (
+  state: ScreenState,
+  totalCoordonatesAvailable: number
+): {
+  coordonateStartIndex: number;
+  nbrCoordonates: number;
+} => {
+  const totalRotations = getTotalRotations(state);
 
-    if (nbrElements > 0) {
-      const {translationMatrix, scaleMatrix} = calculateMatrixes(state, signal);
+  const {nbrCoordonates: nbrCoordonatesOnLeft} = calculateCoordonatesOnLeft(
+    state,
+    totalCoordonatesAvailable
+  );
 
-      //apply a X translation for newer points
-      //of 2 times the screen rotation
-      const newPointsTranslation = mat4.create();
-      mat4.translate(newPointsTranslation, translationMatrix, [
-        -state.screenState.totalRotations * 2,
-        0,
-        0,
-      ]);
+  //Get the number of coordonates that have been added
+  //until the start of the previous screen
+  //ie:
+  //First rotation => nothing
+  //Second rotation => 0
+  //Third rotation => nbr of coordonates in 1 screen
+  //...
 
-      setVertexAttributes(state, signal, newPointsTranslation, scaleMatrix, gl);
+  const nbrCoordonatesToStartOfPreviousScreen = getNbrCoordonatesAfterRotations(
+    state,
+    totalRotations - 1
+  );
 
-      gl.drawArrays(gl.LINE_STRIP, elementIndex, nbrElements);
-    }
-  },
+  const nbrCoordonatesToEndOfLeft =
+    nbrCoordonatesToStartOfPreviousScreen + nbrCoordonatesOnLeft;
 
-  drawRight(state: State, signal: Signal, gl: WebGL2RenderingContext): void {
-    if (state.screenState.totalRotations === 0) {
-      return;
-    }
+  const pointsPerWindow = screenSizeToPointSize(state);
 
-    //draw the points on the right side with one less rotation
-    const elementIndex =
-      getNbrCoordonatesAfterRotations(
-        state.screenState,
-        state.screenState.totalRotations - 1
-      ) /
-        3 +
-      state.screenState.totalCoordonatesAddedToScreen / 3;
+  const mmToPoints = pointsPerWindow / (state.pxToMm * state.containerWidth);
 
-    const maxAvailable = state.screenState.totalCoordonatesAdded / 3;
+  const rightPadding = pointSizeToCoordonateSize(
+    parseInt(`${2 * 10 * mmToPoints}`)
+  ); // 2 cm
 
-    const mmToPoints =
-      (screenSizeToPointSize(state.screenState) / state.screenState.mmToPx) *
-      state.screenState.containerWidth;
+  const nbrCoordonatesToDraw =
+    pointSizeToCoordonateSize(pointsPerWindow) -
+    nbrCoordonatesOnLeft -
+    rightPadding;
 
-    const rightPadding = 3 * Math.floor(parseInt(`${2 * 10 * mmToPoints}`) / 3); // 2 cm
+  //We want to draw the previous screen
+  //except what is already drawn on the left
 
-    const nbrElements = maxAvailable - elementIndex - rightPadding;
+  return {
+    coordonateStartIndex: nbrCoordonatesToEndOfLeft + rightPadding,
+    nbrCoordonates: nbrCoordonatesToDraw,
+  };
+};
 
-    if (nbrElements > 0) {
-      const {translationMatrix, scaleMatrix} = calculateMatrixes(state, signal);
+const drawLeft = (
+  state: State,
+  signal: Signal,
+  totalCoordonatesAvailable: number,
+  gl: WebGL2RenderingContext
+): void => {
+  const totalRotations = getTotalRotations(state.screenState);
 
-      //apply a X translation for older points
-      //of 1 screen rotation
-      const oldPointsTranslation = mat4.create();
-      mat4.translate(oldPointsTranslation, translationMatrix, [
-        -(state.screenState.totalRotations - 1) * 2,
-        0,
-        0,
-      ]);
+  const {coordonateStartIndex, nbrCoordonates} = calculateCoordonatesOnLeft(
+    state.screenState,
+    totalCoordonatesAvailable
+  );
+  if (nbrCoordonates > 0) {
+    const {translationMatrix, scaleMatrix} = calculateMatrixes(state, signal);
 
-      setVertexAttributes(state, signal, oldPointsTranslation, scaleMatrix, gl);
-      // console.log(elementIndex, nbrElements);
-      //19671 1614
-      //19687 1614
+    //apply a X translation for newer points
+    //of 2 times the screen rotation
+    const newPointsTranslation = mat4.create();
+    mat4.translate(newPointsTranslation, translationMatrix, [
+      -totalRotations * 2,
+      0,
+      0,
+    ]);
 
-      gl.drawArrays(gl.LINE_STRIP, elementIndex + rightPadding, nbrElements);
-    }
-  },
+    setVertexAttributes(state, signal, newPointsTranslation, scaleMatrix, gl);
 
-  getSignalPointIndexFromWindowX(
-    screenState: ScreenState,
-    signal: Signal,
-    positionX: number
-  ): number {
-    let positionPixelShiftingFactor = 0;
+    gl.drawArrays(
+      gl.LINE_STRIP,
+      coordonateSizeToVerticeSize(coordonateStartIndex),
+      coordonateSizeToVerticeSize(nbrCoordonates)
+    );
+  }
+};
 
-    const totalRotationsInPixel =
-      screenState.totalRotations * screenState.containerWidth;
+const drawRight = (
+  state: State,
+  signal: Signal,
+  totalCoordonatesAvailable: number,
+  gl: WebGL2RenderingContext
+): void => {
+  const totalRotations = getTotalRotations(state.screenState);
 
-    const pointsToX =
-      screenState.containerWidth / screenSizeToPointSize(screenState);
-    const currentWindowXOfEraser =
-      screenState.lastPointXAddedToScreen * pointsToX - totalRotationsInPixel;
+  if (totalRotations === 0) {
+    return;
+  }
 
-    if (positionX < currentWindowXOfEraser) {
-      //we are on the left side of the eraser, all rotations have already
-      //been applied
-      positionPixelShiftingFactor = totalRotationsInPixel;
-    } else {
-      //we are on the right side of the eraser, 1 rotation has not yet been applied
-      positionPixelShiftingFactor =
-        totalRotationsInPixel - screenState.containerWidth;
-    }
+  const {coordonateStartIndex, nbrCoordonates} = calculateCoordonatesOnRight(
+    state.screenState,
+    totalCoordonatesAvailable
+  );
 
-    const xToPoints =
-      screenSizeToPointSize(screenState) / screenState.containerWidth;
+  if (nbrCoordonates > 0) {
+    const {translationMatrix, scaleMatrix} = calculateMatrixes(state, signal);
 
-    const rotatedPositionX = positionX + positionPixelShiftingFactor;
+    //apply a X translation for older points
+    //of 1 screen rotation
+    const oldPointsTranslation = mat4.create();
+    mat4.translate(oldPointsTranslation, translationMatrix, [
+      -(totalRotations - 1) * 2,
+      0,
+      0,
+    ]);
 
-    const currentX = xToPoints * rotatedPositionX;
+    setVertexAttributes(state, signal, oldPointsTranslation, scaleMatrix, gl);
 
-    return currentX;
-  },
+    gl.drawArrays(
+      gl.LINE_STRIP,
+      coordonateSizeToVerticeSize(coordonateStartIndex),
+      coordonateSizeToVerticeSize(nbrCoordonates)
+    );
+  }
+};
+
+export const drawRotatingSignal = (
+  state: State,
+  signal: Signal,
+  totalCoordonatesAvailable: number,
+  gl: WebGL2RenderingContext
+): void => {
+  drawLeft(state, signal, totalCoordonatesAvailable, gl);
+  drawRight(state, signal, totalCoordonatesAvailable, gl);
 };

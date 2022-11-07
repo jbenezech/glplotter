@@ -1,5 +1,5 @@
+import {DrawingMode} from 'glplotter';
 import {ReducerAction} from '.';
-import {DrawingMode} from '../state';
 
 export const InitializeScreenActionType = 'screen/init';
 export interface InitializeScreenPayload {

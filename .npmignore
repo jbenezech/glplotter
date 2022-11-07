@@ -1,0 +1,9 @@
+coverage/
+node_modules/
+example/
+*.log
+.nyc_output/
+.husky/
+.yarn/
+.nycrc
+test/

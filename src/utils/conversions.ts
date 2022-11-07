@@ -6,7 +6,8 @@
  *
  * - Vertice: 1 unit of signal data in the javascript buffer. This is an integer
  *
- * - Coordonate:  1 unit of signal data in the vertex buffer
+ * - Coordonate:  1 unit of signal data in the vertex buffer.
+ *   Each vertex is represented by three floating-point numbers that correspond to the x, y, and z coordinates
  *
  * - Clipspace: unit of screen in webgl canvas. 0-2
  *
@@ -22,99 +23,69 @@ export function coordonateSizeToVerticeSize(size: number): number {
   return size / 3;
 }
 
-export function getNbrVerticesPerScreen(screenState: ScreenState): number {
-  return Math.round(screenSizeToPointSize(screenState));
-}
-
-export function getNbrCoordonatesAfterRotations(
-  screenState: ScreenState,
-  rotations: number
-): number {
-  const nbrPoints = verticeSizeToCoordonateSize(
-    rotations * screenSizeToPointSize(screenState)
-  );
-
-  const nbrCoordonates = 3 * Math.floor(Math.abs(nbrPoints) / 3);
-
-  return rotations > 0 ? nbrCoordonates : -nbrCoordonates;
-}
-
-export function getNbrVerticesAfterRotations(
-  screenState: ScreenState,
-  rotations: number
-): number {
-  return coordonateSizeToVerticeSize(
-    getNbrCoordonatesAfterRotations(screenState, rotations)
-  );
-}
-
-export function getNbrCoordonatesPerScreen(screenState: ScreenState): number {
-  return verticeSizeToCoordonateSize(getNbrVerticesPerScreen(screenState));
-}
-
-export function coordonateSizeToClipspaceSize(
-  screenState: ScreenState,
-  coordonateSize: number
-): number {
-  const ratio =
-    coordonateSize /
-    verticeSizeToCoordonateSize(screenSizeToPointSize(screenState));
-  return 2 * ratio;
-}
-
-export function clipspaceSizeToVerticeSize(
-  screenState: ScreenState,
-  clipspaceSize: number
-): number {
-  const nbrVertices = (clipspaceSize * screenSizeToPointSize(screenState)) / 2;
-  return Math.round(nbrVertices);
-}
-
-export function verticeSizeToClipspaceSize(
-  screenState: ScreenState,
-  verticeSize: number
-): number {
-  const clipspace = (2 * verticeSize) / screenSizeToPointSize(screenState);
-  return clipspace;
+// A point is represented by 3 coordonates (x,y,z)
+// A point is a decimal value
+// A coordonate is the nearest integer multiple of 3
+export function pointSizeToCoordonateSize(size: number): number {
+  const decimalValue = 3 * size;
+  return 3 * Math.floor(Math.abs(decimalValue) / 3);
 }
 
 export function pointSizeToPixelSize(
-  screenState: ScreenState,
+  {
+    pxToMm,
+    containerWidth,
+    displayRate,
+  }: Pick<ScreenState, 'pxToMm' | 'containerWidth' | 'displayRate'>,
   pointSize: number
 ): number {
-  const pointsPerWindow = screenSizeToPointSize(screenState);
+  const pointsPerWindow = screenSizeToPointSize({
+    pxToMm,
+    containerWidth,
+    displayRate,
+  });
 
-  const ratio = screenState.containerWidth / pointsPerWindow;
+  const ratio = containerWidth / pointsPerWindow;
   return pointSize * ratio;
 }
 
 export function pixelSizeToPointSize(
-  screenState: ScreenState,
+  {pxToMm, displayRate}: Pick<ScreenState, 'pxToMm' | 'displayRate'>,
   pixelSize: number
 ): number {
-  const pointsPerWindow = screenSizeToPointSize(screenState);
+  const windowWidthInMm = pxToMm * pixelSize;
+  const pointsPerSecond = windowWidthInMm / displayRate;
 
-  const ratio = pointsPerWindow / screenState.containerWidth;
-  return pixelSize * ratio;
+  return pointsPerSecond * 1000;
 }
 
 export function pixelSizeToClipspaceSize(
-  screenState: ScreenState,
+  {containerWidth}: Pick<ScreenState, 'containerWidth'>,
   pixelSize: number
 ): number {
-  const pixelToClipspace = 2 / screenState.containerWidth;
+  const pixelToClipspace = 2 / containerWidth;
   return pixelSize * pixelToClipspace;
 }
 
+export function pixelSizeToVerticeSize(
+  {pxToMm, displayRate}: Pick<ScreenState, 'pxToMm' | 'displayRate'>,
+  pixelSize: number
+): number {
+  const nbrVertices = pixelSizeToPointSize(
+    {
+      pxToMm,
+      displayRate,
+    },
+    pixelSize
+  );
+
+  return Math.round(nbrVertices);
+}
+
 export const screenSizeToPointSize = ({
-  mmToPx,
+  pxToMm,
   containerWidth,
   displayRate,
-  pitch,
-}: ScreenState): number => {
-  const windowWidthInMm = mmToPx * containerWidth;
-
-  const pointsPerSecond = windowWidthInMm / displayRate;
-
-  return (pointsPerSecond * 1000) / pitch;
+}: Pick<ScreenState, 'pxToMm' | 'containerWidth' | 'displayRate'>): number => {
+  return pixelSizeToPointSize({pxToMm, displayRate}, containerWidth);
 };

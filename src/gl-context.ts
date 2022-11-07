@@ -106,6 +106,64 @@ const initializeContexts = (
   return {textContext, drawingContext};
 };
 
+export const resizeGlContext = (
+  domElement: HTMLElement,
+  {textContext, drawingContext}: GLContextProps
+): void => {
+  const dimensions = {
+    width: domElement.getBoundingClientRect().width,
+    height: domElement.getBoundingClientRect().height,
+  };
+  positionCanvas(textContext.canvas, dimensions);
+  positionCanvas(drawingContext.canvas, dimensions);
+
+  drawingContext.viewport(
+    0,
+    0,
+    drawingContext.drawingBufferWidth,
+    drawingContext.drawingBufferHeight
+  );
+};
+
+export const clearContext = ({
+  textContext,
+  drawingContext,
+}: GLContextProps): void => {
+  drawingContext.disable(drawingContext.SCISSOR_TEST);
+  drawingContext.clearColor(0, 0, 0, 0);
+  drawingContext.clear(
+    drawingContext.COLOR_BUFFER_BIT | drawingContext.DEPTH_BUFFER_BIT
+  );
+
+  // Clear the 2D canvas
+  textContext.clearRect(
+    0,
+    0,
+    textContext.canvas.width,
+    textContext.canvas.height
+  );
+};
+
+export const destroyGlContext = ({
+  textContext,
+  drawingContext,
+}: GLContextProps): void => {
+  textContext.clearRect(
+    0,
+    0,
+    textContext.canvas.width,
+    textContext.canvas.height
+  );
+  drawingContext.disable(drawingContext.SCISSOR_TEST);
+  drawingContext.clearColor(0, 0, 0, 0);
+  drawingContext.clear(
+    drawingContext.COLOR_BUFFER_BIT | drawingContext.DEPTH_BUFFER_BIT
+  );
+
+  textContext.canvas.parentNode?.removeChild(textContext.canvas);
+  drawingContext.canvas.parentNode?.removeChild(drawingContext.canvas);
+};
+
 export const GLContext = {
   create(domElement: HTMLElement): GLContextProps {
     const dimensions = {

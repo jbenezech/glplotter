@@ -1,12 +1,15 @@
 import {Signal, State} from '@src/store/state';
-import {SignalDrawerManual} from './drawer-manual';
+import {drawManualSignal} from './drawer-manual';
 
-export const SignalDrawerAutomove = {
-  draw(state: State, signal: Signal, gl: WebGL2RenderingContext): void {
-    if (state.screenState.totalCoordonatesAddedToScreen === 0) {
-      return;
-    }
+export const drawAutomoveSignal = (
+  state: State,
+  signal: Signal,
+  totalCoordonatesAvailable: number,
+  gl: WebGL2RenderingContext
+): void => {
+  if (state.screenState.totalCoordonatesDrawn === 0) {
+    return;
+  }
 
-    SignalDrawerManual.draw(state, signal, gl);
-  },
+  drawManualSignal(state, signal, totalCoordonatesAvailable, gl);
 };

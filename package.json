@@ -1,18 +1,32 @@
 {
   "name": "glplotter",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "A modern javascript library, written in typescript, to draw signal streams (such as ECG signals) on canvas",
+  "main": "lib/gl-plotter.js",
+  "module": "lib/gl-plotter.js",
+  "types": "lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbenezech/glplotter.git"
+  },
+  "author": "Jerome Benezech",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jbenezech/glplotter/issues"
+  },
+  "homepage": "https://github.com/jbenezech/glplotter#readme",
   "scripts": {
     "prebuild": "yarn run lint",
-    "coverage": "nyc --reporter=lcov yarn test:unit",
+    "coverage": "nyc --reporter=lcov yarn test:all",
     "test:all": "yarn test:unit & yarn test:integration",
-    "test:unit": "ts-mocha --paths -p ./test/tsconfig.json --require source-map-support/register ./test/unit/**/*.ts",
-    "test:integration": "ts-mocha --paths -p ./test/tsconfig.json -r source-map-support/register ./test/integration/**/*.ts",
+    "test:unit": "ts-mocha -r ./scripts/loader.js --paths -p ./test/tsconfig.json --require source-map-support/register ./test/unit/**/*.ts",
+    "test:integration": "ts-mocha -r ./scripts/loader.js --paths -p ./test/tsconfig.json -r source-map-support/register ./test/integration/**/*.ts",
     "format": "npx prettier --write src/ \"{**/*,*}.{js,ts}\"",
     "lint": "npx eslint src/ --ext .js,.ts --ignore-pattern node_modules/",
     "lint-format": "npm run format && npm run lint",
     "prepare": "husky install",
-    "dev": "webpack --env dev serve",
+    "prepack": "yarn run build",
+    "dev": "webpack serve",
     "build": "webpack --env production"
   },
   "eslintConfig": {
@@ -31,9 +45,11 @@
     ]
   },
   "dependencies": {
+    "@types/stats": "^0.16.30",
     "gl-matrix": "^3.3.0",
     "hex-rgb": "^4.2.0",
-    "immutable": "^4.0.0-rc.12"
+    "immutable": "^4.0.0-rc.12",
+    "stats.js": "^0.17.0"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
@@ -43,6 +59,7 @@
     "@typescript-eslint/eslint-plugin": "^4.28.2",
     "@typescript-eslint/parser": "^4.28.1",
     "chai": "^4.3.6",
+    "copy-webpack-plugin": "^11.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.0",
@@ -60,6 +77,8 @@
     "stylelint-config-standard": "^22.0.0",
     "ts-loader": "^9.4.1",
     "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "ts-sinon": "^2.0.2",
     "tsconfig-paths": "^4.1.0",
     "tsconfig-paths-webpack-plugin": "^4.0.0",
     "typescript": "^4.3.5",

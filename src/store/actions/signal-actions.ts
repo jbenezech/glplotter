@@ -1,25 +1,33 @@
+import {SignalConfig} from 'glplotter';
 import {ReducerAction} from '.';
 
 export const AddSignalActionType = 'signal/add';
-export interface AddSignalPayload {
-  id: string;
-  containerId: string;
-  channelId: string;
-  color: string | number[];
-  visible: boolean;
-  amplitude: number;
-  pitch: number;
-  chartHeight: number;
-  yPosition: number;
-}
+export type AddSignalPayload = SignalConfig;
 type AddSignalAction = ReducerAction<
   typeof AddSignalActionType,
   AddSignalPayload
 >;
 
+export const RemoveSignalActionType = 'signal/remove';
+export interface RemoveSignalPayload {
+  id: string;
+}
+type RemoveSignalAction = ReducerAction<
+  typeof RemoveSignalActionType,
+  RemoveSignalPayload
+>;
+
+export const ReplaceSignalsActionType = 'signal/replaceAll';
+export interface ReplaceSignalsPayload {
+  signals: SignalConfig[];
+}
+type ReplaceSignalsAction = ReducerAction<
+  typeof ReplaceSignalsActionType,
+  ReplaceSignalsPayload
+>;
+
 export const DrawSignalsActionType = 'signal/drawAll';
 export interface DrawSignalsPayload {
-  containerId: string;
   gl: WebGL2RenderingContext;
 }
 type DrawSignalsAction = ReducerAction<
@@ -47,8 +55,18 @@ type PositionSignalAction = ReducerAction<
   PositionSignalPayload
 >;
 
+export const DestroyAllSignalActionType = 'signal/destroyAll';
+type DestroyAllSignalPayload = Record<string, never>;
+type DestroyAllSignalAction = ReducerAction<
+  typeof DestroyAllSignalActionType,
+  DestroyAllSignalPayload
+>;
+
 export type SignalActions =
   | AddSignalAction
+  | RemoveSignalAction
+  | ReplaceSignalsAction
   | DrawSignalsAction
   | ZoomSignalsAction
-  | PositionSignalAction;
+  | PositionSignalAction
+  | DestroyAllSignalAction;

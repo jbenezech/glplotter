@@ -1,7 +1,6 @@
-import {Point} from '@src/structures/Point';
+import {DrawingMode, SignalConfig} from 'glplotter';
 
 export interface GlState {
-  containerId: string;
   dimensions: {
     width: number;
     height: number;
@@ -13,56 +12,58 @@ export interface GlState {
 }
 
 export interface State {
-  ramBuffers: RAMBufferState[];
   gpuBuffers: GPUBufferState[];
   signals: Signal[];
+  measures: Measure[];
+  measureRamBuffer: MeasureRamBufferState;
+  measureGpuBuffer: MeasureGpuBufferState;
   screenState: ScreenState;
   samplingFrequency: number; //used to determine how many points we upload to gpu per run
-}
-
-export interface RAMBufferState {
-  channelId: string;
-  numberOfCoordonatesPendingBuffering: number;
-  previousCoordinates?: Point;
-  zeroCoordinates?: Point;
 }
 
 export interface GPUBufferState {
   channelId: string;
   vertexBufferSize: number;
   vertexBufferNeedsInitializing: boolean;
-  nextVerticeIndexInVertexBuffer: number;
   gpuBufferOverflow: boolean;
-  dataConsumptionBufferStartIndex: number;
-  pendingDrain: boolean;
+  nextVerticeIndexInVertexBuffer: number;
+  scheduledForDeletion: boolean;
 }
 
-export interface Signal {
-  id: string;
-  containerId: string;
-  channelId: string;
+export interface Signal extends SignalConfig {
   color: number[];
-  visible: boolean;
-  amplitude: number;
-  pitch: number;
-  chartHeight: number;
-  yPosition: number;
-
-  zoomRatio: number;
 }
 
-export type DrawingMode = 'MANUAL' | 'AUTOMOVE' | 'ROTATE';
+export interface Measure {
+  id: string;
+  pointX: number;
+  middleLinePosition: number;
+  width: number;
+  middleLineWidth: number;
+  text: string;
+  color: number[];
+}
+
+export interface MeasureRamBufferState {
+  measureIndexes: MeasureRamBufferIndex[];
+  isDirty: boolean;
+}
+
+export interface MeasureRamBufferIndex {
+  measureId: string;
+  index: number;
+}
+
+export interface MeasureGpuBufferState {
+  scheduledForDeletion: boolean;
+}
 
 export interface ScreenState {
-  totalRotations: number;
-  totalCoordonatesAdded: number;
-  lastPointXAddedToScreen: number;
-  totalCoordonatesAddedToScreen: number;
-  lastCoordonatesCountAddedToScreen: number;
+  totalCoordonatesDrawn: number;
 
   drawingMode: DrawingMode;
 
-  mmToPx: number;
+  pxToMm: number;
   displayRate: number;
   containerHeight: number;
   containerWidth: number;
@@ -73,9 +74,6 @@ export interface ScreenState {
 
 export interface ScreenMatrixes {
   xTranslation: number;
-
-  totalXTranslation: number;
-
   modelMatrix: number[];
   projectionMatrix: number[];
 }

@@ -4,27 +4,8 @@ import {
 } from '@src/screen/screen-matrix';
 import {Signal, State} from '@src/store/state';
 import {mat4, ReadonlyMat4} from 'gl-matrix';
-import {shader} from '../gl/signal-shader';
+import {signalShader} from '../gl/signal-shader';
 import {calculateYScale, calculateYTranslation} from '../signal-matrix';
-import {SignalDrawerAutomove} from './drawer-automove';
-import {SignalDrawerManual} from './drawer-manual';
-import {SignalDrawerRotating} from './drawer-rotating';
-
-interface Drawer {
-  draw: (state: State, signal: Signal, gl: WebGL2RenderingContext) => void;
-}
-
-export const drawer = (state: State): Drawer => {
-  switch (state.screenState.drawingMode) {
-    case 'AUTOMOVE':
-      return SignalDrawerAutomove;
-    case 'MANUAL':
-      return SignalDrawerManual;
-      break;
-    default:
-      return SignalDrawerRotating;
-  }
-};
 
 export const calculateMatrixes = (
   state: State,
@@ -33,10 +14,13 @@ export const calculateMatrixes = (
   translationMatrix: ReadonlyMat4;
   scaleMatrix: ReadonlyMat4;
 } => {
+  const {screenState} = state;
+  const {containerWidth, matrixes: screenMatrixes} = screenState;
+
   //combine screen and signal matrixes
   const translationMatrix = mat4.create();
   mat4.fromTranslation(translationMatrix, [
-    calculateXTranslation(state.screenState),
+    calculateXTranslation({containerWidth, ...screenMatrixes}),
     calculateYTranslation(signal, state.screenState),
     0,
   ]);
@@ -61,7 +45,7 @@ export const setVertexAttributes = (
   scaleMatrix: ReadonlyMat4,
   gl: WebGL2RenderingContext
 ): void => {
-  shader().use(
+  signalShader.use(
     gl,
     translationMatrix,
     scaleMatrix,

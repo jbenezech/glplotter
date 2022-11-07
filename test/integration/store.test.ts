@@ -1,26 +1,17 @@
-import {createStore} from '@src/store/store';
+import {createStore, Store} from '@src/store/store';
 import {expect} from 'chai';
-import {RAMBufferState, State} from '@src/store/state';
-import {
-  getRamBuffer,
-  RAM_BUFFER_SIZE,
-  resetRamBuffers,
-} from '@src/signal/ram-buffers';
-import {Point} from '@src/structures/Point';
 import sinon from 'sinon';
+import {generateDataFrame} from 'test-utils.ts/data-helper';
+import {resetGpuBuffers, VERTICES_BATCH_SIZE} from '@src/signal/gpu-buffers';
+import {SignalConfig} from 'glplotter';
 import {initialState} from '@src/store/values';
+import {verticeSizeToCoordonateSize} from '@src/utils/conversions';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('webgl-mock');
 
-const generateDataFrame = (size: number = 100): Point[] => {
-  const dataFrame = [];
-  for (let i = 0; i < size; i++) {
-    dataFrame.push({x: i, y: i + 1});
-  }
-  return dataFrame;
-};
-
-const signalPayload = {
-  containerId: 'c1',
+const signalPayload: SignalConfig = {
+  id: 'sig1',
   channelId: 'ch1',
   color: [0, 0, 0, 1],
   visible: true,
@@ -28,16 +19,37 @@ const signalPayload = {
   pitch: 1,
   chartHeight: 20,
   yPosition: 0,
+  zoomRatio: 1,
 };
 
 describe('Stores', () => {
-  let store;
+  let store: Store;
+
   beforeEach(() => {
-    store = createStore();
+    const state = {
+      ...initialState,
+      screenState: {
+        ...initialState.screenState,
+        containerWidth: 1200,
+        pxToMm: 1 / 3.7795275591,
+        displayRate: 50,
+      },
+    };
+    store = createStore(state);
+    resetGpuBuffers();
   });
 
-  describe('RAM Reducers', () => {
-    it('It mutates the state correctly after bufferData', () => {
+  describe('Data Reducers', () => {
+    let gl: WebGL2RenderingContext;
+    let glStub: sinon.SinonStub;
+
+    beforeEach(() => {
+      const canvas = new HTMLCanvasElement();
+      gl = canvas.getContext('webgl') as WebGL2RenderingContext;
+      glStub = sinon.stub(gl, 'bufferSubData');
+    });
+
+    it('It uploads and mutates the state correctly after bufferData', () => {
       const dataFrame = [
         {x: 0, y: 1},
         {x: 1, y: 2},
@@ -45,57 +57,68 @@ describe('Stores', () => {
       const vertices = [0, 1, 0, 1, 2, 0];
 
       store.dispatch({
-        type: 'ram/bufferData',
+        type: 'data/buffer',
         payload: {
           channelId: 'ch1',
           points: dataFrame,
+          gl,
         },
       });
 
       const newState = store.getState();
-      const ramBufferState: RAMBufferState = newState.ramBuffers[0];
-      const ramBuffer = getRamBuffer('ch1');
 
-      const expectation = new Float32Array(RAM_BUFFER_SIZE);
-      expectation.set(vertices);
+      //check data is uploaded to gpu
+      expect(glStub.called).to.be.true;
+      expect(glStub.getCall(1)).to.be.null;
 
-      expect(ramBuffer).to.deep.equal(expectation);
-      expect(ramBufferState.numberOfCoordonatesPendingBuffering).to.equal(6);
+      const call = glStub.getCall(0);
+      const args = call.args as unknown[];
+      const startIndex = args[1];
+      const data = args[2];
 
-      expect(ramBufferState.zeroCoordinates).to.deep.equal({x: 0, y: 1});
-      expect(ramBufferState.previousCoordinates).to.deep.equal({x: 1, y: 2});
+      expect(startIndex).to.equal(0);
+      expect(data).to.deep.equal(Float32Array.from(vertices));
+
+      //check state is updated
+      const {gpuBuffers} = newState;
+
+      expect(gpuBuffers).to.have.length(1);
+      expect(gpuBuffers[0].nextVerticeIndexInVertexBuffer).to.equal(
+        vertices.length
+      );
     });
   });
 
-  describe('GPU Reducers', () => {
-    let state;
-    let gl;
-    let glStub;
+  describe('Signal Reducers', () => {
+    let gl: WebGL2RenderingContext;
+    let glStub: sinon.SinonStub;
+    const nbrPoints = 100;
 
     beforeEach(() => {
-      store = createStore();
-      resetRamBuffers();
-      store.dispatch({type: 'signal/add', payload: signalPayload});
+      const canvas = new HTMLCanvasElement();
+      gl = canvas.getContext('webgl') as WebGL2RenderingContext;
+      glStub = sinon.stub(gl, 'drawArrays');
+
       store.dispatch({
-        type: 'ram/bufferData',
+        type: 'signal/add',
+        payload: signalPayload,
+      });
+
+      store.dispatch({
+        type: 'data/buffer',
         payload: {
           channelId: 'ch1',
-          points: generateDataFrame(),
+          points: generateDataFrame(nbrPoints),
+          gl,
         },
       });
-      const canvas = new HTMLCanvasElement();
-      gl = canvas.getContext('webgl');
-      glStub = sinon.stub(gl, 'drawArrays');
     });
 
-    it('It mutates the state correctly after drawSignals', () => {
-      const vertices = [0, 1, 0, 1, 2, 0];
-
+    it('It draws and mutates the state correctly after drawSignals', () => {
       store.dispatch({
-        type: 'gpu/drawSignals',
+        type: 'signal/drawAll',
         payload: {
-          containerId: 'c1',
-          gl: gl,
+          gl,
         },
       });
 
@@ -105,11 +128,17 @@ describe('Stores', () => {
       expect(glStub.called).to.be.true;
       expect(glStub.getCall(1)).to.be.null;
 
-      //expect gpu buffer state to have moved
+      //expect screen state
+      const {screenState} = newState;
+      expect(screenState.totalCoordonatesDrawn).to.equal(VERTICES_BATCH_SIZE);
 
-      //expect screen state to be updated
+      //expect gpu state
+      const {gpuBuffers} = newState;
 
-      //expect ram buffers to be consumed
+      expect(gpuBuffers).to.have.length(1);
+      expect(gpuBuffers[0].nextVerticeIndexInVertexBuffer).to.equal(
+        verticeSizeToCoordonateSize(nbrPoints)
+      );
     });
   });
 });

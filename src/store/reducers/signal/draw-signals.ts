@@ -1,171 +1,113 @@
-import {drawer} from '@src/signal/drawers/drawer';
 import {
-  bindAndUploadDataToGpu,
-  prepareDataUpload,
-  UploadOperationResult,
+  calculateDrawBatchSize,
+  deleteGpuBuffer,
+  getGpuBuffer,
 } from '@src/signal/gpu-buffers';
-import {consumeDataBuffers} from '@src/signal/ram-buffers';
-import {
-  applyPostDrawScreenTransition,
-  applyPreDrawScreenTransition,
-} from '@src/screen/screen-transitions';
+import {applyPostDrawScreenTransition} from '@src/screen/screen-transitions';
 import {DrawSignalsPayload} from '@src/store/actions/signal-actions';
 import {Signal, State} from 'src/store/state';
+import {signalShader} from '@src/signal/gl/signal-shader';
+import {drawRotatingSignal} from '@src/signal/drawers/drawer-rotating';
+import {drawManualSignal} from '@src/signal/drawers/drawer-manual';
+import {drawAutomoveSignal} from '@src/signal/drawers/drawer-automove';
 
-export const drawSignals = (
-  state: State,
-  {containerId, gl}: DrawSignalsPayload
-): State => {
-  return drawAllSignalsForContainer(state, containerId, gl) || state;
-};
+export const drawSignals = (state: State, {gl}: DrawSignalsPayload): State => {
+  const nextState = executeScheduledDestroy(state, gl);
 
-const drawAllSignalsForContainer = (
-  state: State,
-  containerId: string,
-  gl: WebGL2RenderingContext
-): State | null => {
-  const channels = gatherChannelsToDraw(state);
-
-  const operationResults: UploadOperationResult[] = [];
-
-  let nextState = {...state};
-
-  //For each channel, prepare the state it will
-  //be in once the data is actaully uploaded
-  for (const channelId of channels) {
-    const uploadResult = prepareDataUpload(state, channelId, gl);
-    if (uploadResult === null) {
-      continue;
-    }
-
-    //update state
-    nextState = {
-      ...nextState,
-      gpuBuffers: [
-        ...state.gpuBuffers.filter((buffer) => buffer.channelId !== channelId),
-        uploadResult.gpuBufferState,
-      ],
-    };
-
-    //register result
-    operationResults.push(uploadResult);
+  if (state.gpuBuffers.length === 0) {
+    //if no more buffers, also delete the shader
+    signalShader.delete(gl);
   }
 
-  //Find the maximum amount of data
-  //Added and use that to update the screen state
-  const {totalCoordonatesAdded, lastCoordonatesCountAddedToScreen} =
-    operationResults.reduce(
-      (acc, current) => {
-        return current.totalCoordonatesAdded > acc.totalCoordonatesAdded
-          ? current
-          : acc;
-      },
-      {totalCoordonatesAdded: 0, lastCoordonatesCountAddedToScreen: 0}
-    );
+  return drawVisibleSignals(nextState, gl) || state;
+};
 
-  //Apply screen transition
-  const preDrawSceenState = applyPreDrawScreenTransition(
-    nextState.screenState,
-    {
-      totalCoordonatesAdded,
-      lastCoordonatesCountAddedToScreen,
-    }
-  );
+const executeScheduledDestroy = (
+  state: State,
+  gl: WebGL2RenderingContext
+): State => {
+  state.gpuBuffers
+    .filter((buffer) => !!buffer.scheduledForDeletion)
+    .forEach((buffer) => {
+      deleteGpuBuffer(buffer, gl);
+    });
 
-  nextState = {
-    ...nextState,
-    screenState: preDrawSceenState,
+  return {
+    ...state,
+    gpuBuffers: state.gpuBuffers.filter(
+      (buffer) => !buffer.scheduledForDeletion
+    ),
   };
+};
 
-  channels.forEach((channelId) => {
+const drawVisibleSignals = (
+  state: State,
+  gl: WebGL2RenderingContext
+): State | null => {
+  //We want to keep all signals in sync
+  //so we start by checking how many points
+  //each buffer is able to draw
+
+  let {screenState} = state;
+  const {gpuBuffers} = state;
+
+  const nbrCoordonatesToDraw = calculateDrawBatchSize({
+    ...screenState,
+    gpuBuffers,
+  });
+
+  const totalCoordonatesAvailable =
+    screenState.totalCoordonatesDrawn + nbrCoordonatesToDraw;
+
+  gpuBuffers.forEach((gpuBufferState) => {
     //for all signals of that channel
     //draw the buffer with the corresponding shader configuration
     //Do that here so that we do not have to rebing the buffer
 
-    const uploadResultForChannel = operationResults.find(
-      (result) => result.gpuBufferState.channelId === channelId
-    );
+    const {channelId} = gpuBufferState;
 
-    if (uploadResultForChannel === undefined) {
-      return;
-    }
+    const buffer = getGpuBuffer(channelId);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
 
-    //Bind buffer and upload data
-    nextState = {
-      ...nextState,
-      gpuBuffers: [
-        ...state.gpuBuffers.filter((buffer) => buffer.channelId !== channelId),
-        bindAndUploadDataToGpu(
-          uploadResultForChannel.gpuBufferState,
-          uploadResultForChannel.dataToUpload,
-          gl
-        ),
-      ],
-    };
-
-    const channelSignals = gatherChannelSignalsToDraw(
-      nextState,
-      containerId,
-      channelId
-    );
-
+    const channelSignals = gatherChannelSignalsToDraw(state, channelId);
     channelSignals.forEach((signal) => {
-      drawSignal(nextState, signal, gl);
+      drawSignal(state, signal, totalCoordonatesAvailable, gl);
     });
   });
 
-  //update RAM buffers to reflect data consumed
-  const ramBuffers = consumeDataBuffers(
-    nextState,
-    operationResults.map((result) => ({
-      channelId: result.gpuBufferState.channelId,
-      ramDataConsumed: result.ramDataConsumed,
-    }))
+  screenState = applyPostDrawScreenTransition(
+    screenState,
+    totalCoordonatesAvailable
   );
 
-  const screenState = applyPostDrawScreenTransition(nextState.screenState);
-
   return {
-    ...nextState,
-    ramBuffers,
+    ...state,
     screenState,
   };
 };
 
-const gatherChannelsToDraw = (state: State): string[] => {
-  //get All signals for that container
-  const signals = state.signals;
-
-  //get the list of unique channel ids for these signals
-  const uniqueChannelRecords = signals.reduce((acc, current) => {
-    if (!acc[current.channelId]) {
-      acc[current.channelId] = current.channelId;
-    }
-    return acc;
-  }, {} as Record<string, string>);
-
-  return Object.keys(uniqueChannelRecords).map(
-    (key) => uniqueChannelRecords[key]
-  );
-};
-
 const gatherChannelSignalsToDraw = (
   state: State,
-  containerId: string,
   channelId: string
 ): Signal[] => {
-  //draw buffer if the signal is for the given container
   return state.signals
     .filter((signal) => signal.channelId === channelId)
-    .filter((signal) => signal.containerId === containerId)
     .filter((signal) => !!signal.visible);
 };
 
 const drawSignal = (
   state: State,
   signal: Signal,
+  totalCoordonatesAvailable: number,
   gl: WebGL2RenderingContext
 ): void => {
-  const drawerToUse = drawer(state);
-  drawerToUse.draw(state, signal, gl);
+  switch (state.screenState.drawingMode) {
+    case 'AUTOMOVE':
+      return drawAutomoveSignal(state, signal, totalCoordonatesAvailable, gl);
+    case 'MANUAL':
+      return drawManualSignal(state, signal, totalCoordonatesAvailable, gl);
+      break;
+    default:
+      return drawRotatingSignal(state, signal, totalCoordonatesAvailable, gl);
+  }
 };

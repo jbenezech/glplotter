@@ -3,15 +3,27 @@ import hexRgb from 'hex-rgb';
 const hexRegexp = new RegExp(/^#/);
 
 export const colorToGlColor = (color: number[] | string): number[] => {
-  //already defined as webgl color array
-  if (Array.isArray(color)) {
-    return color;
+  let rgba = {
+    red: 255,
+    green: 255,
+    blue: 255,
+    alpha: 1,
+  };
+
+  //defined as rgba array
+  if (Array.isArray(color) && color.length === 4) {
+    rgba = {
+      red: color[0],
+      green: color[1],
+      blue: color[2],
+      alpha: color[3],
+    };
   }
 
-  if (!color || hexRegexp.test(color)) {
-    return [255 / 255, 255 / 255, 255 / 255, 1.0];
+  const hexColor = color as string;
+  if (color && hexRegexp.test(hexColor)) {
+    rgba = hexRgb(hexColor);
   }
 
-  const rgb = hexRgb(color);
-  return [rgb.red / 255, rgb.green / 255, rgb.blue / 255, rgb.alpha];
+  return [rgba.red / 255, rgba.green / 255, rgba.blue / 255, rgba.alpha];
 };

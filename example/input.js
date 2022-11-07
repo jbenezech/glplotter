@@ -469,3 +469,17 @@ var data = [
   -4.983329772949219, -4.985794544219971, -4.988062381744385,
   -4.990133762359619,
 ];
+
+var lastX = 0;
+function generateData(channel) {
+  var dataFrame = [];
+  for (let i = 0; i < 50; i++) {
+    dataFrame.push({x: lastX, y: data[lastX % data.length]});
+    lastX++;
+  }
+
+  return {
+    channelId: channel,
+    points: dataFrame,
+  };
+}

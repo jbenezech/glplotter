@@ -1,0 +1,2 @@
+#!/bin/sh
+npx pretty-quick --staged && npx eslint src/ --ext .js,.ts --ignore-pattern node_modules/ --cache --fix

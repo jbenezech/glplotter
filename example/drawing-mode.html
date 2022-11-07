@@ -1,0 +1,82 @@
+<html>
+  <head>
+    <meta
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+      name="viewport"
+    />
+    <script src="https://unpkg.com/glplotter"></script>
+    <script src="./input.js"></script>
+  </head>
+  <body style="margin: 0">
+    <div
+      id="gl-container"
+      style="
+        background-color: black;
+        width: 100vw;
+        max-width: 100%;
+        height: 577px;
+        position: relative;
+      "
+    ></div>
+    When in manual mode, you can move the signal by dragging the mouse
+
+    <button onclick="rotate()">Rotate</button>
+
+    <button onclick="manual()">Manual</button>
+
+    <script>
+      var plotter;
+      var mode = 'ROTATE';
+      var moving = false;
+
+      function rotate() {
+        mode = 'ROTATE';
+        plotter.switchMode(mode);
+      }
+
+      function manual() {
+        mode = 'MANUAL';
+        plotter.switchMode(mode);
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        plotter = glplotter({
+          referenceContainer: document.getElementById('gl-container'),
+          displayRate: 50,
+        });
+
+        setInterval(() => {
+          plotter.bufferData(generateData('ch1'));
+        }, 50);
+
+        plotter.addSignal({
+          id: 'sig1',
+          channelId: 'ch1',
+          color: '#fff',
+          visible: true,
+          amplitude: 8,
+          pitch: 1,
+          chartHeight: 70,
+          yPosition: 95,
+        });
+
+        document
+          .getElementById('gl-container')
+          .addEventListener('mousedown', () => (moving = true));
+
+        document
+          .getElementById('gl-container')
+          .addEventListener('mouseup', () => (moving = false));
+
+        document
+          .getElementById('gl-container')
+          .addEventListener('mousemove', (event) => {
+            if (!moving || mode !== 'MANUAL') {
+              return;
+            }
+            plotter.move(event.movementX);
+          });
+      });
+    </script>
+  </body>
+</html>

@@ -1,14 +1,10 @@
+import {getTotalRotations} from '@src/screen/screen-utils';
 import {
   InitializeScreenPayload,
   MoveScreenPayload,
   SwitchModePayload,
   UpdateScreenContainerPayload,
 } from '@src/store/actions/screen-actions';
-import {
-  screenSizeToPointSize,
-  getNbrCoordonatesAfterRotations,
-  getNbrCoordonatesPerScreen,
-} from '@src/utils/conversions';
 import {ScreenState, State} from '../../state';
 
 export const initializeScreen = (
@@ -39,7 +35,6 @@ export const applyContainerChanges = (
     },
     container
   );
-
   return {
     ...state,
     screenState: newScreenState,
@@ -50,11 +45,29 @@ export const switchDrawingMode = (
   state: State,
   {mode}: SwitchModePayload
 ): State => {
+  const {screenState} = state;
+
+  const translationReset =
+    //No translation in rotating mode
+    mode === 'ROTATE'
+      ? 0
+      : //Switching to manual, go to the end minus 1 screen
+      //(last point is on the right of the screen)
+      mode === 'MANUAL'
+      ? -(screenState.containerWidth - 1) * getTotalRotations(screenState)
+      : 0;
+
+  const newMatrix = {
+    ...screenState.matrixes,
+    xTranslation: translationReset,
+  };
+
   return {
     ...state,
     screenState: {
-      ...state.screenState,
+      ...screenState,
       drawingMode: mode,
+      matrixes: newMatrix,
     },
   };
 };
@@ -81,36 +94,23 @@ const setStateFromContainer = (
   state: ScreenState,
   newContainer: HTMLElement
 ): ScreenState => {
-  let mmToPx = state.mmToPx;
-  if (mmToPx === 0) {
-    //Get the reference mmToPx
+  let pxToMm = state.pxToMm;
+  if (pxToMm === 0) {
+    //Get the reference pxToMm
     const element = document.createElement('div');
-    element.id = 'mmToPx';
+    element.id = 'pxToMm';
     element.style.width = '1mm';
     document.body.appendChild(element);
-    mmToPx = 1 / element.getBoundingClientRect().width;
+    pxToMm = 1 / element.getBoundingClientRect().width;
     document.body.removeChild(element);
   }
 
-  let newState = {
+  const newState = {
     ...state,
-    mmToPx,
+    pxToMm,
     containerWidth: newContainer.getBoundingClientRect().width,
     containerHeight: newContainer.getBoundingClientRect().height,
   };
-
-  const pointsPerWindow = screenSizeToPointSize(newState);
-  if (pointsPerWindow !== 0) {
-    newState = {
-      ...newState,
-      totalRotations: Math.floor(
-        state.totalCoordonatesAdded / getNbrCoordonatesPerScreen(newState)
-      ),
-      totalCoordonatesAddedToScreen:
-        state.totalCoordonatesAdded -
-        getNbrCoordonatesAfterRotations(newState, newState.totalRotations),
-    };
-  }
 
   return newState;
 };

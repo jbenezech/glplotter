@@ -1,5 +1,7 @@
-const path = require('path');
-const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
+/* eslint-disable id-length */
+import Copy from 'copy-webpack-plugin';
+import path from 'path';
+import TsconfigPathsPlugin from 'tsconfig-paths-webpack-plugin';
 
 module.exports = {
   entry: ['./src/gl-plotter.ts'],
@@ -44,6 +46,16 @@ module.exports = {
     extensions: ['.ts', '.js'],
     plugins: [new TsconfigPathsPlugin({})],
   },
+  plugins: [
+    new Copy({
+      patterns: [
+        {
+          from: './src/index.d.ts',
+          to: 'index.d.ts',
+        },
+      ],
+    }),
+  ],
   devServer: {
     static: {
       directory: __dirname,
@@ -56,5 +68,5 @@ module.exports = {
       },
     },
   },
-  mode: 'development'
+  mode: 'development',
 };

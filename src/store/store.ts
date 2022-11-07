@@ -10,7 +10,7 @@ const deepFreeze = (item: State): State => {
   return Object.freeze(item);
 };
 
-interface Store {
+export interface Store {
   getState: () => State;
   dispatch: (action: ReducerActions) => State;
 }
